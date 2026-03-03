@@ -1,0 +1,42 @@
+# Data (too large for git)
+/data/
+*.zip
+*.tar.gz
+
+# Models
+models/*.pt
+models/*.pth
+*.onnx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.venv/
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Experiment outputs
+experiments/*/outputs/
+experiments/*/checkpoints/
+wandb/
+
+# Logs
+*.log
+logs/
