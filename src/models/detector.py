@@ -85,6 +85,7 @@ class LightweightDetector(nn.Module):
         backbone: str = "efficientnet_b0.ra_in1k",
         pretrained: bool = True,
         dropout: float = 0.2,
+        freeze_backbone: bool = False,
     ):
         super().__init__()
 
@@ -102,6 +103,10 @@ class LightweightDetector(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(self.feature_dim, 1),
         )
+
+        if freeze_backbone:
+            for param in self.backbone.parameters():
+                param.requires_grad = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         features = self.backbone(x)

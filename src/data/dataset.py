@@ -82,11 +82,11 @@ class DeepfakeDataset(Dataset):
 def get_train_transforms(img_size: int = 224) -> A.Compose:
     """Training augmentations for robustness."""
     return A.Compose([
-        A.RandomResizedCrop(height=img_size, width=img_size, scale=(0.8, 1.0)),
+        A.RandomResizedCrop(size=(img_size, img_size), scale=(0.8, 1.0)),
         A.HorizontalFlip(p=0.5),
         A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1, p=0.5),
-        A.ImageCompression(quality_lower=50, quality_upper=100, p=0.3),
-        A.GaussNoise(var_limit=(10.0, 50.0), p=0.2),
+        A.ImageCompression(quality_range=(50, 100), p=0.3),
+        A.GaussNoise(std_range=(0.02, 0.1), p=0.2),
         A.GaussianBlur(blur_limit=(3, 7), p=0.2),
         A.Normalize(
             mean=[0.485, 0.456, 0.406],
