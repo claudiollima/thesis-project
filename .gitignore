@@ -40,3 +40,7 @@ wandb/
 # Logs
 *.log
 logs/
+
+# Experiment model weights (too large for git)
+experiments/*/*.pt
+experiments/*/*.pth

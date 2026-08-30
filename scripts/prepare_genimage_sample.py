@@ -29,7 +29,6 @@ def main():
         "poloclub/diffusiondb",
         "2m_random_1k",  # Small 1k sample
         split="train",
-        trust_remote_code=True,
     )
     
     print(f"Dataset loaded: {len(dataset)} samples")
@@ -56,7 +55,6 @@ def main():
             "imagenet_sketch",
             split="train",
             streaming=True,
-            trust_remote_code=True,
         )
         
         real_count = 0
