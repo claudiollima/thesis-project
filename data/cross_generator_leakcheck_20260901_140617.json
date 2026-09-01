@@ -1,0 +1,235 @@
+{
+  "experiment": "cross_generator_leakcheck_R2b",
+  "purpose": "Test whether the R2 cross-generator AUC inversion survives removal of synthetic_test shortcut features.",
+  "shortcut_thresholds": {
+    "synth_min": 0.98,
+    "cifake_max": 0.75
+  },
+  "per_feature_separability": {
+    "cifake": {
+      "R_mean": 0.6045,
+      "R_std": 0.5607,
+      "R_skew": 0.5327,
+      "G_mean": 0.602,
+      "G_std": 0.5513,
+      "G_skew": 0.5272,
+      "B_mean": 0.6057,
+      "B_std": 0.5272,
+      "B_skew": 0.5508,
+      "fft_bin00": 0.577,
+      "fft_bin01": 0.7185,
+      "fft_bin02": 0.5772,
+      "fft_bin03": 0.5169,
+      "fft_bin04": 0.5043,
+      "fft_bin05": 0.5136,
+      "fft_bin06": 0.5044,
+      "fft_bin07": 0.5045,
+      "fft_bin08": 0.5115,
+      "fft_bin09": 0.5057,
+      "fft_bin10": 0.5061,
+      "fft_bin11": 0.5202,
+      "fft_bin12": 0.5046,
+      "fft_bin13": 0.506,
+      "fft_bin14": 0.5155,
+      "fft_bin15": 0.5353,
+      "resid_mean": 0.6989,
+      "resid_std": 0.7993,
+      "resid_absmean": 0.7656,
+      "resid_abs_p90": 0.6969
+    },
+    "synthetic_test": {
+      "R_mean": 1.0,
+      "R_std": 0.8098,
+      "R_skew": 0.5924,
+      "G_mean": 0.9975,
+      "G_std": 0.7843,
+      "G_skew": 0.5792,
+      "B_mean": 0.9976,
+      "B_std": 0.8027,
+      "B_skew": 0.5609,
+      "fft_bin00": 0.9622,
+      "fft_bin01": 0.9602,
+      "fft_bin02": 1.0,
+      "fft_bin03": 0.9786,
+      "fft_bin04": 0.5851,
+      "fft_bin05": 0.5441,
+      "fft_bin06": 0.6834,
+      "fft_bin07": 0.7248,
+      "fft_bin08": 0.8332,
+      "fft_bin09": 0.9554,
+      "fft_bin10": 0.9809,
+      "fft_bin11": 1.0,
+      "fft_bin12": 1.0,
+      "fft_bin13": 1.0,
+      "fft_bin14": 1.0,
+      "fft_bin15": 1.0,
+      "resid_mean": 0.9936,
+      "resid_std": 0.9992,
+      "resid_absmean": 0.9975,
+      "resid_abs_p90": 0.5025
+    }
+  },
+  "shortcut_features": [
+    "R_mean",
+    "G_mean",
+    "B_mean",
+    "fft_bin02",
+    "fft_bin10",
+    "fft_bin11",
+    "fft_bin12",
+    "fft_bin13",
+    "fft_bin14",
+    "fft_bin15",
+    "resid_mean"
+  ],
+  "n_features_all": 29,
+  "n_features_clean": 18,
+  "matrix_all_features": {
+    "cifake": {
+      "cifake": {
+        "f1": 0.8678304239401496,
+        "auc": 0.93045,
+        "accuracy": 0.8675,
+        "confusion_matrix": [
+          [
+            173,
+            27
+          ],
+          [
+            26,
+            174
+          ]
+        ],
+        "kind": "in_domain"
+      },
+      "synthetic_test": {
+        "f1": 0.0,
+        "auc": 0.00040000000000000034,
+        "accuracy": 0.5,
+        "confusion_matrix": [
+          [
+            100,
+            0
+          ],
+          [
+            100,
+            0
+          ]
+        ],
+        "kind": "cross_generator"
+      }
+    },
+    "synthetic_test": {
+      "cifake": {
+        "f1": 0.5682242990654206,
+        "auc": 0.36989999999999995,
+        "accuracy": 0.4225,
+        "confusion_matrix": [
+          [
+            17,
+            183
+          ],
+          [
+            48,
+            152
+          ]
+        ],
+        "kind": "cross_generator"
+      },
+      "synthetic_test": {
+        "f1": 1.0,
+        "auc": 1.0,
+        "accuracy": 1.0,
+        "confusion_matrix": [
+          [
+            100,
+            0
+          ],
+          [
+            0,
+            100
+          ]
+        ],
+        "kind": "in_domain"
+      }
+    }
+  },
+  "matrix_shortcut_removed": {
+    "cifake": {
+      "cifake": {
+        "f1": 0.8270676691729323,
+        "auc": 0.893525,
+        "accuracy": 0.8275,
+        "confusion_matrix": [
+          [
+            166,
+            34
+          ],
+          [
+            35,
+            165
+          ]
+        ],
+        "kind": "in_domain"
+      },
+      "synthetic_test": {
+        "f1": 0.0,
+        "auc": 0.006000000000000001,
+        "accuracy": 0.5,
+        "confusion_matrix": [
+          [
+            100,
+            0
+          ],
+          [
+            100,
+            0
+          ]
+        ],
+        "kind": "cross_generator"
+      }
+    },
+    "synthetic_test": {
+      "cifake": {
+        "f1": 0.664440734557596,
+        "auc": 0.3507,
+        "accuracy": 0.4975,
+        "confusion_matrix": [
+          [
+            0,
+            200
+          ],
+          [
+            1,
+            199
+          ]
+        ],
+        "kind": "cross_generator"
+      },
+      "synthetic_test": {
+        "f1": 1.0,
+        "auc": 1.0,
+        "accuracy": 1.0,
+        "confusion_matrix": [
+          [
+            100,
+            0
+          ],
+          [
+            0,
+            100
+          ]
+        ],
+        "kind": "in_domain"
+      }
+    }
+  },
+  "mean_cross_gen_auc_all": 0.1851,
+  "mean_cross_gen_auc_clean": 0.1784,
+  "verdict_all": "INVERSION (ranking anti-correlated)",
+  "verdict_clean": "INVERSION (ranking anti-correlated)",
+  "inversion_survives_leak_removal": true,
+  "elapsed_seconds": 8.3,
+  "timestamp": "20260901_140617",
+  "label_convention": "fake=1, real=0"
+}

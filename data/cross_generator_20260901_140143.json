@@ -1,0 +1,95 @@
+{
+  "experiment": "cross_generator_generalization",
+  "datasets": {
+    "cifake": "CIFAKE (dragonintelligence, 224x224)",
+    "synthetic_test": "independent synthetic set, 224x224"
+  },
+  "classifier": "LogisticRegression on 29 forensic features (color9 + radial_fft16 + noise_residual4)",
+  "label_convention": "fake=1, real=0",
+  "matrix": {
+    "cifake": {
+      "cifake": {
+        "f1": 0.8678304239401496,
+        "auc": 0.93045,
+        "accuracy": 0.8675,
+        "confusion_matrix": [
+          [
+            173,
+            27
+          ],
+          [
+            26,
+            174
+          ]
+        ],
+        "kind": "in_domain"
+      },
+      "synthetic_test": {
+        "f1": 0.0,
+        "auc": 0.00040000000000000034,
+        "accuracy": 0.5,
+        "confusion_matrix": [
+          [
+            100,
+            0
+          ],
+          [
+            100,
+            0
+          ]
+        ],
+        "kind": "cross_generator"
+      }
+    },
+    "synthetic_test": {
+      "cifake": {
+        "f1": 0.5682242990654206,
+        "auc": 0.36989999999999995,
+        "accuracy": 0.4225,
+        "confusion_matrix": [
+          [
+            17,
+            183
+          ],
+          [
+            48,
+            152
+          ]
+        ],
+        "kind": "cross_generator"
+      },
+      "synthetic_test": {
+        "f1": 1.0,
+        "auc": 1.0,
+        "accuracy": 1.0,
+        "confusion_matrix": [
+          [
+            100,
+            0
+          ],
+          [
+            0,
+            100
+          ]
+        ],
+        "kind": "in_domain"
+      }
+    }
+  },
+  "generalization_gap": {
+    "cifake": {
+      "in_domain_f1": 0.8678,
+      "mean_cross_gen_f1": 0.0,
+      "gap": 0.8678
+    },
+    "synthetic_test": {
+      "in_domain_f1": 1.0,
+      "mean_cross_gen_f1": 0.5682,
+      "gap": 0.4318
+    }
+  },
+  "mean_gap": 0.6498,
+  "elapsed_seconds": 8.4,
+  "timestamp": "20260901_140143",
+  "note": "torch unavailable; classical forensic-feature baseline. Provenance of synthetic_test unverified beyond directory labels; treat as a second-generator proxy."
+}
