@@ -157,11 +157,90 @@ remaining 18 features — it stays trivially separable, so it's a weak second
 generator and a poor proxy for "in the wild." That's exactly why R3 (a real third,
 provenance-known generator) is still the gating next step, not optional polish.
 
+## R3 — third, provenance-known generator: 3×3 cross-generator matrix (2026-09-02)
+
+**The gate.** R2/R2b established the cross-generator collapse on only TWO sets, one
+of which (`synthetic_test`) is trivially separable and a weak proxy. Dr. Santos'
+R3 gate: a genuinely THIRD, provenance-known generator, to confirm the effect isn't
+a two-set fluke. This closes it.
+
+**Third set: DeepFakeFace / text2img (arXiv:2309.02218).**
+- **real:** WIKI face photos (`wiki.zip`).
+- **fake:** Stable-Diffusion **text2img** regenerations of the *same identities*
+  (`text2img.zip`) — paired real/fake, same content source, differing only by
+  generator. This is the "paired real-fake from same source" design the GenD notes
+  recommend to avoid content shortcut learning.
+- **Acquired honestly:** 250 train + 75 val identity pairs streamed out of the two
+  1–1.7 GB source zips via HTTP range requests (parse central directory → range-GET
+  each member → inflate), rather than pulling 3 GB. **Train identities are disjoint
+  from val identities** — no identity leakage.
+- **Confound control:** all DeepFakeFace fakes are 512×512 (SD output) while its
+  reals are native WIKI sizes, so raw dimensions could be a shortcut. Every image in
+  all three sets is resized to 224×224 before featurizing (identity for CIFAKE /
+  synthetic_test, already 224). Same 29 forensic features as R1/R2, imported verbatim.
+- **Script:** `experiments/run_cross_generator_3way.py`
+- **Raw output:** `data/cross_generator_3way_20260902_140837.json`
+
+| Train ↓ / Test → | CIFAKE-val | synthetic-val | deepfake-val |
+|------------------|-----------|---------------|--------------|
+| **CIFAKE** | **0.868 / 0.930** (in-dom) | 0.000 / 0.000 | 0.000 / 0.578 |
+| **synthetic_test** | 0.568 / 0.370 | **1.000 / 1.000** (in-dom*) | 0.575 / 0.410 |
+| **deepfakeface_t2i** | 0.385 / 0.420 | 0.000 / 0.859 | **0.733 / 0.788** (in-dom) |
+
+*(each cell = F1 / AUC. \*synthetic_test in-domain 1.000 is the known artifact from R2b, not a win.)*
+
+**Headline numbers:** mean in-domain→cross F1 gap **+0.612**; mean cross-generator
+AUC **0.440** (below chance); **4 of 6** off-diagonal cells are inverted (AUC < 0.5);
+every off-diagonal F1 ≤ 0.575. **The two-set collapse was not a fluke — it holds
+with a genuine, provenance-known third generator.**
+
+### The third set behaves like an HONEST generator, which is the point
+
+DeepFakeFace in-domain lands at **F1 0.733 / AUC 0.788** with a balanced confusion
+matrix `[[55,20],[20,55]]` — clearly imperfect, symmetric errors, no leak. That is
+exactly what a real generator with overlapping classes should look like, and it is
+the opposite of synthetic_test's degenerate 1.000. So R3 is carried by a legitimate
+detection problem, and the cross-generator collapse around it is trustworthy.
+
+### Honest correction to R2's headline
+
+R2 called the effect a **polarity flip to AUC ≈ 0**. R3 shows that was the *extreme
+end of a spectrum, specific to the CIFAKE↔synthetic pair* (CIFAKE→synthetic AUC
+0.0004), **not a universal law.** With the honest third generator the cross cells
+cluster **around chance with mild inversion** (0.37–0.58), not at ≈0. The defensible,
+general claim is therefore weaker but sturdier: *content forensic detectors do not
+transfer across generators — cross-generator AUC collapses to ≈chance (0.44 mean,
+often below it).* I'm walking the "perfect inversion" framing back to "collapse to
+chance"; the dramatic inversion is real but is one pair, not the rule.
+
+### A second failure mode: threshold collapse even when ranking survives
+
+Three off-diagonal cells have **F1 = 0.000 with confusion matrix `[[N,0],[N,0]]`** —
+the detector predicts *everything real* at the fixed 0.5 threshold. Two are near
+chance in ranking too (CIFAKE→synthetic AUC 0.000; CIFAKE→deepfake AUC 0.578), but
+one is striking: **deepfake→synthetic has AUC 0.859 yet F1 0.000.** The probability
+*ranking* transfers, but the *operating point* is so miscalibrated under domain shift
+that the deployed classifier is useless. This is a distinct, deployment-relevant face
+of non-transfer: even when a detector "could" separate classes on another generator,
+its calibrated threshold does not survive the shift. (The 0.859 is also inflated by
+synthetic_test's trivial separability along shared feature axes — I don't read it as
+genuine transfer.)
+
+### What this does and does not establish
+
+- **Does:** three independently-sourced generators, one of them paired same-source
+  faces with fully known provenance, all confirm content-forensic detection does not
+  cross generators. Mean cross-gen AUC 0.44. R2 reproduced cell-for-cell (0.868 /
+  0.930 CIFAKE, 0.000/0.0004 CIFAKE→synthetic), so nothing shifted under the resize.
+- **Does not:** this is still a classical 29-feature baseline, not a deep CNN, and
+  the subsets are small (75–200 val per set). It does not yet show the *positive*
+  half of the thesis — that spread signal survives where content fails.
+
 ### Next row (planned)
-- R3: get a genuinely third, provenance-known generator (Midjourney set currently
-  only has real images — needs its fake half) to confirm the inversion isn't a
-  two-set fluke.
-- R4: the actual thesis test — add **spread-pattern signal** on top and show it
-  survives the cross-generator shift where content features invert.
-- Then: revisit once torch is available for a real CNN backbone, and treat any jump
-  toward AUC 1.0 as a leak until proven otherwise.
+- **R4 — the actual thesis test:** add **spread-pattern signal** on top and show it
+  survives the cross-generator shift where content features collapse. This is now the
+  gate, not more content baselines.
+- Report cross-generator numbers at a **calibrated / tuned threshold** too, not just
+  0.5, to separate "ranking fails" from "threshold fails" (R3 showed both happen).
+- Revisit with a real CNN backbone once torch is available; treat any jump toward
+  AUC 1.0 as a leak until proven otherwise.
