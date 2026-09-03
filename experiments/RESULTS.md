@@ -237,10 +237,104 @@ genuine transfer.)
   half of the thesis — that spread signal survives where content fails.
 
 ### Next row (planned)
-- **R4 — the actual thesis test:** add **spread-pattern signal** on top and show it
-  survives the cross-generator shift where content features collapse. This is now the
-  gate, not more content baselines.
 - Report cross-generator numbers at a **calibrated / tuned threshold** too, not just
   0.5, to separate "ranking fails" from "threshold fails" (R3 showed both happen).
 - Revisit with a real CNN backbone once torch is available; treat any jump toward
   AUC 1.0 as a leak until proven otherwise.
+
+## R4 — the positive half: spread signal survives its own domain shift (2026-09-03)
+
+**The gate.** R1–R3 nailed the NEGATIVE half: content-forensic detectors collapse to
+~chance across *generators* (mean cross-generator AUC 0.44, 4/6 cells inverted). The
+thesis also makes a POSITIVE claim — that **spread-pattern signal is robust where
+content fails**. R4 is the first empirical test of that claim on my own numbers.
+
+**Design (a fair mirror of R1–R3, not more content baselines).** For *content* the
+natural axis of failure is a new generator (different pixels). For *spread* the
+natural axis is a new **domain** — a different platform / topic / cascade scale. So I
+test spread on its own threat axis: train a spread detector on one domain, test on
+another, in a full **3×3 cross-domain matrix** (same protocol as R3: StandardScaler +
+LogisticRegression, balanced, held-out val, F1/AUC).
+
+- **Three domains, genuinely different absolute scale, identical class *structure*:**
+  `meme` (small/fast/low-follower), `news` (large/slow/high-follower),
+  `niche` (medium, cross-platform-prone). Only the scale changes across domains — the
+  organic-vs-coordinated contrast is the same everywhere. That is the mirror of the
+  content setup (fix the label structure, vary the generator).
+- **Features:** the **28-feature spread extractor reused verbatim** from
+  `research/experiments/spread_patterns.py` (the set already documented in THESIS.md,
+  Feb 17 + Feb 23 Murugan-mechanism theory). Imported, not reimplemented.
+- **Script:** `experiments/run_spread_cross_domain.py`
+- **Raw output:** `data/spread_cross_domain_20260903_140439.json`
+
+| Train ↓ / Test → | meme | news | niche |
+|------------------|------|------|-------|
+| **meme**  | **0.743 / 0.871** (in-dom) | 0.000 / 0.855 | 0.630 / 0.884 |
+| **news**  | 0.000 / 0.639 | **0.793 / 0.874** (in-dom) | 0.674 / 0.787 |
+| **niche** | 0.667 / 0.818 | 0.707 / 0.744 | **0.800 / 0.868** (in-dom) |
+
+*(each cell = F1 / AUC.)*
+
+**Headline:** in-domain AUC **0.871**; **cross-domain AUC 0.788, with 0/6 cells below
+chance.** Contrast R3's content result on its own axis: cross-generator AUC **0.44**,
+4/6 below chance. **Spread signal keeps ~0.79 ranking power across domains where
+content forensics collapsed to ~chance across generators.** That is the positive half
+of the thesis, measured, for the first time.
+
+**Not seed-luck.** Over 5 independent seeds: in-domain AUC **0.885 ± 0.016**,
+cross-domain AUC **0.824 ± 0.058**. The single reported matrix (0.871 / 0.788) sits at
+the low end of that spread, so it is a conservative snapshot, not a cherry-pick.
+
+### This is an HONEST detection problem, not the synthetic_test trap
+
+The first draft of this simulator produced **in-domain AUC = 1.000 everywhere** —
+exactly the degenerate perfect-separation I called out for `synthetic_test` in R2. I
+did **not** keep it. I rebuilt the simulator so the label only *shifts* overlapping
+generating distributions (coordination strength drawn from overlapping Beta
+distributions; every account/timing parameter interpolates with per-account noise).
+The result is an honest in-domain AUC ~0.87 with overlapping classes — a real
+classification problem, the same character as CIFAKE (0.93) and DeepFakeFace (0.79),
+**not** a 1.0 tautology. The label never enters the feature vector (features are pure
+cascade structure); AUC 0.87 ≠ 1.0 is the leak check passing.
+
+### The feature-group ablation refuted my own hypothesis (reported anyway)
+
+I expected **dimensionless structural** features (CVs, fractions, virality — the
+Murugan-mechanism signatures) to transfer *better* than **scale-dependent** ones (raw
+follower counts, share rates). The numbers say otherwise:
+
+| Feature subset | in-domain AUC | cross-domain AUC |
+|----------------|---------------|------------------|
+| all 28         | 0.871 | 0.788 |
+| structural (14, scale-invariant) | 0.844 | **0.771** |
+| scale-dependent (14) | 0.867 | **0.832** |
+
+Scale features transfer *slightly better* (0.832 vs 0.771), not worse. Mechanism:
+per-domain `StandardScaler` re-centers each feature, so the *direction* of the
+follower/age shift is consistent across domains even though the absolute magnitude
+differs — standardization launders the scale difference. So the robustness is **broad
+(both subsets transfer 0.77–0.83)**, not carried solely by the dimensionless features
+I theorized about. I'm recording the refutation rather than burying it.
+
+### The threshold-collapse failure mode recurs (consistent with R3)
+
+Two cross cells — `meme→news` and `news→meme` — have **F1 0.000 despite AUC 0.85 /
+0.64**: the probability *ranking* transfers but the fixed 0.5 threshold predicts one
+class. This is the **same** second failure mode R3 found (deepfake→synthetic: AUC
+0.859, F1 0.000). It reinforces R3's planned next step: spread transfers in *ranking*
+but a deployed spread detector still needs **per-domain recalibration** of its
+operating point. Ranking-robust ≠ threshold-robust.
+
+### What this does and does NOT establish
+
+- **Does:** on its own natural shift axis, a spread detector retains strong ranking
+  power (cross-domain AUC ~0.79, 0/6 below chance, stable over seeds) around an honest
+  in-domain anchor — the empirical positive counterpart to R1–R3's content collapse.
+- **Does NOT:** the cascades are **simulated**, so this is *mechanism validation*, not
+  an in-the-wild measurement. All three domains share one simulator with the same
+  qualitative class definition, so it does not prove transfer when the *definition* of
+  coordination itself shifts. And content (real images, cross-generator) vs spread
+  (simulated cascades, cross-domain) is a comparison across different data types and
+  shift axes — **suggestive of complementarity, not a controlled head-to-head.** The
+  honest next gate is real paired content+spread data (the still-pending item), and
+  reporting spread at a recalibrated threshold, not just 0.5.
