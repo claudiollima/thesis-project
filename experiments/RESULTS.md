@@ -338,3 +338,93 @@ operating point. Ranking-robust ≠ threshold-robust.
   shift axes — **suggestive of complementarity, not a controlled head-to-head.** The
   honest next gate is real paired content+spread data (the still-pending item), and
   reporting spread at a recalibrated threshold, not just 0.5.
+
+## R5 — threshold recalibration: is the F1-0.000 collapse fixable? (2026-09-04)
+
+**Motivation.** R3 and R4 both found the same second failure mode and both deferred
+the same fix verbatim: several cross cells have strong *ranking* (AUC 0.64–0.85) but
+**F1 = 0.000** at the fixed 0.5 threshold — the probability ordering transfers, the
+operating point does not. R4's closing line: "reporting spread at a recalibrated
+threshold, not just 0.5." This row does exactly that and answers one question:
+
+> Is the F1-0.000-at-AUC-0.85 collapse a **fixable calibration artifact** (ranking is
+> usable, only the threshold is wrong), or a **genuine transfer failure** (the ranking
+> isn't actually convertible into a decision)?
+
+**Setup.** Reuses R4's simulator + 28-feature spread extractor + train protocol
+*verbatim* (imported from `run_spread_cross_domain.py`; nothing re-tuned). The learned
+model is held **fixed** — AUC is identical across policies because we only relabel the
+same score ranking. Only the decision-threshold policy varies, ordered most-deployable
+to cheating-ceiling:
+
+1. **naive_0.5** — R4 baseline (reproduces the collapse).
+2. **source_prior** — threshold set on the *source* domain's own scores so the
+   predicted-positive rate matches the known class prior (0.5, balanced), applied to
+   target. **Uses ZERO target labels** — only assumes you know the base rate.
+3. **target_cal** — reserve a small labelled slice of the target (**25/class**), pick
+   the F1-max threshold there, evaluate on a disjoint target test. Few-label
+   deployment; uses target labels but not the test scores.
+4. **target_oracle** — F1-max threshold on the target *test* labels themselves. This
+   **peeks at test**; reported ONLY as a ceiling ("how much is recoverable"), never as
+   a result.
+
+- **Script:** `experiments/run_spread_threshold_recal.py`
+- **Raw output:** `data/spread_threshold_recal_20260904_140224.json`
+- **Protocol:** 150/class train, 25/class target calibration, 60/class disjoint target
+  test; LogisticRegression + per-domain StandardScaler (same as R1–R4).
+
+### Result — cross-domain F1 by policy (mean over the 6 cross cells, 5 seeds)
+
+| Policy | target labels used | cross-domain F1 (5-seed) | vs naive |
+|--------|--------------------|--------------------------|----------|
+| naive_0.5 | none | 0.425 ± 0.097 | — |
+| **source_prior** | **none (base rate only)** | **0.429 ± 0.100** | **+0.004** |
+| **target_cal** | **25 / class** | **0.761 ± 0.024** | **+0.336** |
+| target_oracle (ceiling) | test labels (cheat) | 0.799 ± 0.017 | +0.374 |
+
+Cross-domain AUC is **0.85** and unchanged by every policy (we only move the threshold).
+
+The single reported matrix (seed 20260904) shows the mechanism cell-by-cell — the cell
+that was fully collapsed under R3/R4's 0.5 rule:
+
+| cross cell | AUC | F1 naive | F1 source_prior | F1 target_cal | F1 oracle |
+|------------|-----|----------|-----------------|---------------|-----------|
+| meme→news  | 0.844 | **0.000** | **0.000** | 0.750 | 0.790 |
+| meme→niche | 0.813 | 0.209 | 0.209 | 0.732 | 0.762 |
+| news→meme  | 0.917 | 0.581 | 0.581 | 0.864 | 0.891 |
+| news→niche | 0.889 | 0.571 | 0.571 | 0.822 | 0.835 |
+| niche→meme | 0.859 | 0.780 | 0.775 | 0.803 | 0.819 |
+| niche→news | 0.780 | 0.690 | 0.690 | 0.663 | 0.780 |
+
+### The answer: fixable — but ONLY with a little target supervision
+
+- **The collapse is a calibration artifact, not a ranking failure.** The fully-dead
+  `meme→news` cell (F1 0.000 at AUC 0.844) recovers to **0.750** with 25 target
+  labels/class, and mean cross-domain F1 jumps **0.425 → 0.761 (+0.336)**. The ranking
+  was usable all along; the 0.5 threshold was simply in the wrong place.
+- **`target_cal` (0.761) sits within 0.038 of the `oracle` ceiling (0.799)** and has
+  ~4× tighter variance than naive (±0.024 vs ±0.097). 25 labels/class recovers ~95% of
+  the recoverable F1 — cheap, realistic deployment.
+
+### The self-refutation I stand behind: base rate alone does NOT fix it
+
+I expected `source_prior` — matching the known 50/50 base rate on source scores — to
+rescue the collapse for free (no target labels). **It does not:** 0.429 vs naive 0.425,
+a **+0.004** non-effect, and it leaves the same 1/6 cells fully collapsed. Mechanism:
+the classifier's score *distribution* shifts across domains (systematically compressed/
+offset on the target), so a threshold calibrated on the source lands in the wrong place
+on the target regardless of the prior. **Knowing the base rate is not enough; you need a
+few actual target-domain labels to locate the operating point.** Recording the refuted
+hypothesis rather than burying it.
+
+### What this does and does NOT establish
+
+- **Does:** refines R4's positive claim into a deployment-honest one — spread's
+  cross-domain *ranking* (AUC ~0.85) **is** convertible into usable decisions
+  (cross F1 ~0.76), closing the R3/R4 threshold-collapse gap, but this requires a
+  **small target-labelled calibration set (~25/class)**. Zero-shot at the *ranking*
+  level ≠ zero-shot at the *decision* level.
+- **Does NOT:** the cascades are still **simulated** (mechanism validation, as in R4),
+  and the recalibration is demonstrated on the spread axis only. It does not remove the
+  still-pending gate: **real paired content+spread data**, on which the same
+  source→target recalibration protocol should be re-run.
