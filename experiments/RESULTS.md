@@ -428,3 +428,104 @@ hypothesis rather than burying it.
   and the recalibration is demonstrated on the spread axis only. It does not remove the
   still-pending gate: **real paired content+spread data**, on which the same
   source→target recalibration protocol should be re-run.
+
+---
+
+## R6 — Controlled content × spread head-to-head (SAME items, SAME shift) — 2026-09-07
+
+**Script:** `experiments/run_content_spread_headtohead.py`
+**Raw:** `data/content_spread_headtohead_20260907_140217.json`
+
+### Why R6 exists
+
+R4 and R5 both closed with the *same* verbatim caveat: content (real images,
+tested across generators) vs spread (simulated cascades, tested across domains)
+were **different data on different axes — suggestive of complementarity, not a
+controlled head-to-head.** The Feb-20 combined-signal table shared the weakness:
+content accuracy was a hand-set dial, not a coupled property of each item.
+
+R6 removes it. **Every item now carries BOTH** a spread cascade (R4 simulator,
+reused verbatim) **and** a content-forensic latent for that *same item*, and both
+are evaluated across the *same* 3×3 domain shift. Content and spread are coupled
+through the shared per-item coordination strength `c` (the same overlapping Beta
+that drives the cascade also scales the content-fake strength), so the two
+signals are correlated through the latent cause — as in reality — not independent
+by fiat.
+
+**Content model is not a rigged straw man.** Each domain has a near-orthogonal
+generator *fingerprint* (Gram-Schmidt; measured cos ≈ 0.000 between domains). A
+content boundary learned in one domain is therefore uninformative on another —
+this is the R1–R3 generator-collapse mechanism expressed on matched items, not a
+hand-set accuracy. FAKE_SHIFT tuned so in-domain content AUC ≈ 0.75 (honest
+overlap, near the real CIFAKE 0.93 / DeepFakeFace 0.79 anchors, **not** the
+degenerate 1.0).
+
+### Result (AUC threshold-free; F1 at R5 `target_cal` threshold, 25 labels/class)
+
+| signal | in AUC | in F1 | cross AUC | cross F1 | cross below-chance |
+|--------|--------|-------|-----------|----------|--------------------|
+| content | 0.747 | 0.724 | **0.465** | 0.655 | **5/6** |
+| spread  | 0.862 | 0.797 | **0.805** | 0.751 | **0/6** |
+| fusion (source-weight late fusion) | **0.901** | **0.823** | 0.614 | 0.684 | 2/6 |
+
+**Per-cell (C content / S spread / F fusion, AUC):**
+
+| cell | content | spread | fusion |
+|------|---------|--------|--------|
+| (in) meme→meme | 0.722 | 0.869 | 0.901 |
+| meme→news | 0.450 | 0.792 | 0.450 |
+| meme→niche | 0.462 | 0.826 | 0.474 |
+| news→meme | 0.566 | 0.838 | 0.811 |
+| (in) news→news | 0.747 | 0.859 | 0.897 |
+| news→niche | 0.466 | 0.847 | 0.765 |
+| niche→meme | 0.444 | 0.883 | 0.584 |
+| niche→news | 0.401 | 0.642 | 0.601 |
+| (in) niche→niche | 0.771 | 0.858 | 0.905 |
+
+### Headline
+
+On matched items under the same shift:
+
+1. **Content collapses cross-domain** (AUC 0.465, 5/6 below chance) — the R1–R3
+   mechanism reproduced on the *same items* spread succeeds on. First time the
+   negative half is shown on matched data.
+2. **Spread transfers** (AUC 0.805, 0/6 below chance) — R4 confirmed on matched
+   data, same axis as content for the first time.
+3. **Fusion is best IN-DOMAIN (0.901) but WORSE than spread-alone CROSS-DOMAIN
+   (0.614 vs 0.805, −0.191 AUC / −0.067 F1).** A source-trained late-fusion
+   meta-learner keeps trusting content; because cross-domain content is
+   *anti-correlated* (AUC < 0.5), that trust drags fusion below spread alone.
+
+### The self-refutation I stand behind (Dr. Santos discipline)
+
+I expected the R5 lesson to carry over: "a few target labels fix the cross-domain
+gap." R5 was about the *threshold*; R6 asked whether it also fixes the *fusion
+combination*. **It does not.** Relearning the 2 fusion weights on a 25-label/class
+target slice (`target-refit fusion`) gives cross-domain **AUC 0.670** — still far
+below spread-alone 0.805:
+
+| cross-domain (6 cells) | AUC | F1 |
+|------------------------|-----|-----|
+| spread alone | **0.805** | **0.750** |
+| fusion, source weights | 0.665 | 0.688 |
+| fusion, target-refit (25 labels/class) | 0.670 | 0.668 |
+
+**Why the R5 trick fails here:** a threshold is 1 scalar and cross-domain
+*ranking* was intact, so 25 labels sufficed (R5). The fusion combination must
+learn to *ignore* a channel that is genuinely anti-correlated on the target; a
+2-feature meta-learner on 25 labels can't reliably do that. **A collapsed content
+channel is dead weight that a small calibration set cannot cheaply gate off.**
+
+### What this establishes / does NOT
+
+- **Establishes:** the complementarity story is now a *controlled* head-to-head on
+  matched items, and it is sharper than "combine and win." Naive late fusion is
+  **actively harmful under domain shift**; the robust deployment choice is to
+  **drop the collapsed content channel, not fuse it** — and this is *not* the
+  cheaply-fixable calibration artifact R5 found. Selective/gated fusion that can
+  fully down-weight a dead channel (not a fixed source-trained combiner) is the
+  real open design problem.
+- **Does NOT:** content latents and cascades are both **simulated** — mechanism
+  validation of complementarity on matched items, not an in-the-wild number. The
+  still-pending gate is unchanged: **real paired content+spread data**, on which
+  this same matched head-to-head + fusion protocol should be re-run.
