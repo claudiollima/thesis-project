@@ -529,3 +529,98 @@ channel is dead weight that a small calibration set cannot cheaply gate off.**
   validation of complementarity on matched items, not an in-the-wild number. The
   still-pending gate is unchanged: **real paired content+spread data**, on which
   this same matched head-to-head + fusion protocol should be re-run.
+
+---
+
+## R7 — Reliability-gated fusion: can a small target slice VETO a dead channel? — 2026-09-08
+
+**Script:** `experiments/run_gated_fusion.py`
+**Raw:** `data/gated_fusion_20260908_140522.json`
+**Data:** IDENTICAL to R6 (imports R6's `build_paired_domain_dataset`, `Signal`,
+threshold + AUC helpers verbatim; same 3×3 domain shift, same coupled content×spread
+items). R7 is a controlled add-on, not a new dataset.
+
+### Why R7 exists — R6's explicit open problem
+
+R6 closed with: *"Selective/gated fusion that can fully down-weight a dead channel
+(not a fixed source-trained combiner) is the real open design problem."* R6 also
+showed the obvious first fix fails: a **target-refit** 2-feature LogReg on 25
+labels/class gives cross AUC ~0.70, still far below spread-alone.
+
+R7 separates two things R6 lumped together under "use the target labels":
+
+- **(A) RELEARN the combiner** — fit a 2-D decision surface. Statistically
+  expensive; R6 shows 25 labels is not enough.
+- **(B) ESTIMATE per-channel RELIABILITY** — a channel's cross-domain AUC is *one
+  scalar per channel*. Testing whether it clears 0.5 should be far cheaper than
+  fitting a combiner.
+
+R7 tests (B): use the 25-label/class slice **only** to estimate each frozen
+channel's calibration-AUC, then **gate** — veto (hard) or logit-weight (soft) a
+channel that looks dead — **without relearning any combination**. Ceiling =
+`oracle_gate` (gate on the unseen *test* AUC); floor = `always_spread` ("drop
+content forever"). **Reproducibility fix:** R6's per-item content latent is seeded
+by `abs(hash(cid))`, which CPython randomizes per process — R6's own numbers drift
+run-to-run. R7 pins `PYTHONHASHSEED=0` (self-re-exec) and averages over **5 master
+seeds**, so every number below is deterministic and reported mean ± std.
+
+### Result (cross-domain AUC, mean ± std over 5 seeds)
+
+| strategy | in AUC | cross AUC | cross F1 |
+|----------|--------|-----------|----------|
+| content_only | 0.744 ± 0.000 | 0.486 ± 0.000 | 0.666 |
+| spread_only  | 0.864 ± 0.007 | **0.802 ± 0.022** | 0.742 |
+| naive_fusion (R6, source wts) | 0.897 | 0.635 ± 0.016 | 0.687 |
+| refit_fusion (R6, target 25/cls) | 0.895 | 0.730 ± 0.017 | 0.704 |
+| **hard_gate (deployable)** | 0.898 | **0.767 ± 0.024** | 0.706 |
+| **soft_gate (deployable)** | 0.894 | **0.769 ± 0.024** | 0.707 |
+| **oracle_gate (ceiling)** | 0.898 | **0.767 ± 0.023** | 0.706 |
+| always_spread (floor) | 0.864 | **0.802 ± 0.022** | 0.742 |
+
+**hard_gate keep/drop audit vs the oracle (pooled over 30 cross cells):** correct
+set **25/30**; kept a dead content channel **0** times; dropped a good spread
+channel **0** times.
+
+### Headline — the sharp, honest resolution
+
+1. **The reliability veto is cheap AND accurate.** The deployable gate, using only
+   25 target labels, makes the *same* keep/drop decision as the oracle in 25/30
+   cells and **never** keeps a dead content channel or drops a good spread channel.
+   The (B)-vs-(A) split holds: estimating one reliability scalar per channel is
+   easy where R6's combiner-refit was not. **The gate is not the bottleneck.**
+2. **Gating REPAIRS R6's harm** — hard/soft gate cross AUC 0.767/0.769 vs naive
+   fusion 0.635 (**+0.13**), and beats even R6's target-refit combiner (0.730).
+   So R6's "naive late fusion is actively harmful" is fixable after all.
+3. **But gating cannot BEAT dropping content.** The killer number is the ceiling:
+   **`oracle_gate` (0.767) is itself −0.035 below `always_spread` (0.802)**, and
+   the deployable gate matches the oracle to three decimals. A gate with *perfect*
+   reliability knowledge still loses to the trivial policy of never using content
+   at all. The deployable gate is not underperforming the oracle — the **oracle
+   underperforms the floor.**
+
+### Why (the mechanism, not a knob)
+
+Whenever the gate correctly *keeps* content (the cells where in-domain-adjacent
+content clears the margin), averaging content's logit into the strong spread logit
+**dilutes** spread more than content's weak-but-positive signal adds. Content is
+never anti-correlated enough for the veto to fire *everywhere*, yet never strong
+enough cross-domain for inclusion to help. So the optimal cross-domain action is
+the corner solution — **weight content exactly zero, always** — which no
+soft/hard *inclusion* rule can reach without collapsing to `always_spread` itself.
+
+### What this establishes / does NOT
+
+- **Establishes:** a clean, deployment-honest closure of R6's open problem.
+  *Selective gating from a tiny target slice is achievable and fixes fusion's
+  cross-domain harm* — but on this matched, coupled data **it does not extract any
+  value content-alone cannot already justify dropping.** The correct engineering
+  recommendation under generator/domain shift is unchanged and now *proven against
+  its own ceiling*: **use spread alone; do not fuse content, do not gate it in —
+  drop it.** Fusion/gating is worth its complexity only if content's cross-domain
+  AUC rises above the dilution break-even (not the case here).
+- **Does NOT:** content latents and cascades are still **simulated** (mechanism
+  validation on matched items, as R4–R6). The still-pending gate is unchanged:
+  **real paired content+spread data**, on which this same gate-vs-oracle-vs-floor
+  protocol should be re-run. The corner-solution result predicts a concrete,
+  testable threshold there: content earns inclusion only where its measured
+  cross-domain AUC exceeds the spread-dilution break-even.
